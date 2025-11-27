@@ -487,6 +487,33 @@ async function handleSaveCommand(chatId, args) {
   }
 }
 
+async function handleAddCommand(chatId, userId, args) {
+  if (ADMIN_IDS.length > 0 && !ADMIN_IDS.includes(userId.toString())) {
+    await sendMessage(chatId, '❌ Only admins can add movies.');
+    return;
+  }
+  
+  const parts = args.split('|').map(p => p.trim());
+  
+  if (parts.length < 4) {
+    await sendMessage(chatId, '❌ Invalid format.\n\nUse: /add Movie Name | Year | Quality | FileID\n\nExample:\n<code>/add Inception | 2010 | 1080p | BQACAgIAAxk...</code>');
+    return;
+  }
+  
+  const movieName = parts[0];
+  const year = parts[1];
+  const quality = parts[2];
+  const fileId = parts[3];
+  
+  const success = addMovieToDatabase(movieName, year, quality, fileId, 'document', 'Unknown');
+  
+  if (success) {
+    await sendMessage(chatId, `✅ <b>Movie added!</b>\n\n🎬 ${movieName} (${year})\n📊 Quality: ${quality}\n\nUsers can now search and download this movie!`);
+  } else {
+    await sendMessage(chatId, '❌ Error adding movie. Please try again.');
+  }
+}
+
 async function handleMessage(message) {
   const chatId = message.chat.id;
   const userId = message.from.id;
@@ -533,6 +560,12 @@ async function handleMessage(message) {
   if (text.startsWith('/save ')) {
     const args = text.substring(6).trim();
     await handleSaveCommand(chatId, args);
+    return;
+  }
+  
+  if (text.startsWith('/add ')) {
+    const args = text.substring(5).trim();
+    await handleAddCommand(chatId, userId, args);
     return;
   }
   

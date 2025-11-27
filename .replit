@@ -15,15 +15,15 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Status Page"
+args = "Movie Bot"
 
 [[workflows.workflow]]
-name = "Status Page"
+name = "Movie Bot"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "node src/status.js"
+args = "node src/index.js"
 waitForPort = 5000
 
 [workflows.workflow.metadata]
@@ -32,6 +32,10 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 36123
+externalPort = 3000
 
 [deployment]
 deploymentTarget = "autoscale"

@@ -1,37 +1,45 @@
 # Telegram Movie Bot
 
 ## Overview
-A Telegram bot for searching and downloading movies. Supports both **Google Apps Script** (recommended, free) and **Node.js** deployments.
+A Telegram bot for searching and downloading movies from T4TSA.cc. Supports both **Google Apps Script** (recommended, free) and **Node.js** deployments.
 
 ## Project Structure
 ```
 /
 ├── google-apps-script/
-│   ├── MovieBot.gs       # Complete Google Apps Script code (MAIN)
+│   ├── MovieBot.gs       # Complete Google Apps Script code
 │   └── SETUP_GUIDE.md    # Setup instructions for GAS
 ├── src/
-│   └── index.js          # Node.js version (alternative)
+│   ├── index.js          # Node.js bot with T4TSA integration
+│   ├── status.js         # Simple status page
+│   └── t4tsa-scraper.js  # T4TSA.cc scraper module
 ├── data/
-│   ├── movies.json       # Movie database (Node.js version)
+│   ├── movies.json       # Local movie database
 │   └── user_temp.json    # Temporary user data
-├── README.md             # Main documentation
 ├── package.json          # Node.js dependencies
 └── .gitignore            # Git ignore rules
 ```
 
-## Current Deployment
-**Primary:** Google Apps Script (free, serverless)
-- Bot Token: Set in Google Apps Script
-- Database: Google Sheets (ID: 1oi0ts8bW6FClMiPRkie3mJt_zk5MJ7wVSwDr4T_1XKg)
-- Webhook: Configured via `clearAndSetWebhook` function
+## Environment Variables Required
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `BOT_TOKEN` | Telegram Bot Token from @BotFather | Yes |
+| `TMDB_API_KEY` | TMDB API key for movie search | Yes (for T4TSA search) |
+| `ADMIN_IDS` | Comma-separated Telegram user IDs | Optional |
 
 ## Key Features
-- Movie search by name/year
-- Direct file downloads in Telegram
-- Google Sheets as database
-- Deduplication to prevent message spam
-- Admin controls for adding movies
-- T4TSA channel integration
+- **T4TSA Integration**: Search movies on T4TSA.cc via TMDB
+- **Quality Selection**: Choose between 720p and 1080p downloads
+- **Movie search by name/year**: Add year for accurate results
+- **Local database**: Store movies with Telegram file IDs
+- **Admin controls**: Add movies to local database
+
+## How It Works
+1. User sends movie name (e.g., "Inception 2010")
+2. Bot searches TMDB for the movie → gets TMDB ID
+3. Bot fetches T4TSA.cc page using TMDB ID
+4. Bot shows available 720p and 1080p download options
+5. User clicks to download from T4TSA
 
 ## Bot Commands
 | Command | Description |
@@ -43,28 +51,21 @@ A Telegram bot for searching and downloading movies. Supports both **Google Apps
 | `/addmovie` | Add movie (admin) |
 | `/save` | Save forwarded file |
 
-## Google Apps Script Functions
-| Function | Purpose |
-|----------|---------|
-| `clearAndSetWebhook` | Fix spamming, reset webhook |
-| `setWebhook` | Set Telegram webhook |
-| `deleteWebhook` | Remove webhook |
-| `getWebhookInfo` | Check webhook status |
-| `testBot` | Test bot connection |
-
 ## Recent Changes
-- 2025-11-27: Added deduplication in `doPost` to prevent message spam
-- 2025-11-27: Fixed webhook response format (JSON with proper MIME type)
-- 2025-11-27: Added `clearAndSetWebhook` function with `drop_pending_updates`
-- 2025-11-27: Improved command detection (case-insensitive, handles @botname suffix)
-
-## Troubleshooting
-1. **Bot spamming messages**: Run `clearAndSetWebhook` in Google Apps Script
-2. **Commands not working**: Check BOT_TOKEN and WEB_APP_URL are correct
-3. **Multiple deployments**: Delete old deployments in GAS, keep only one
+- 2025-11-27: Added T4TSA.cc scraper integration
+- 2025-11-27: Added 720p/1080p quality selection
+- 2025-11-27: Integrated TMDB API for movie search
+- 2025-11-27: Created t4tsa-scraper.js module
 
 ## Technology Stack
-- Google Apps Script (primary)
-- Google Sheets (database)
+- Node.js/Express (main deployment)
+- Cheerio (HTML parsing for scraping)
+- Axios (HTTP requests)
+- TMDB API (movie metadata)
 - Telegram Bot API
-- Node.js/Express (alternative deployment)
+- Google Apps Script (alternative)
+
+## Troubleshooting
+1. **Search not working**: Make sure TMDB_API_KEY is set
+2. **Bot not responding**: Check BOT_TOKEN is correct
+3. **No downloads found**: Movie may not be available on T4TSA

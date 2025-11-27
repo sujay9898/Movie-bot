@@ -3,6 +3,7 @@ import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { searchMovie, getMovieDownloads, searchAndGetDownloads } from './t4tsa-scraper.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,6 +18,7 @@ const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').filter(Boolean);
 
 const T4TSA_MOVIES_CHANNEL = '@IrisMoviesX';
 const T4TSA_BOT = '@PhonoFilmBot';
+const T4TSA_BASE_URL = 'https://t4tsa.cc';
 
 const DATA_FILE = path.join(__dirname, '..', 'data', 'movies.json');
 const USER_DATA_FILE = path.join(__dirname, '..', 'data', 'user_temp.json');
@@ -68,7 +70,7 @@ async function sendMessage(chatId, text, parseMode = 'HTML', replyMarkup = null)
     chat_id: chatId,
     text: text,
     parse_mode: parseMode,
-    disable_web_page_preview: false
+    disable_web_page_preview: true
   };
   
   if (replyMarkup) {
@@ -83,6 +85,30 @@ async function sendMessage(chatId, text, parseMode = 'HTML', replyMarkup = null)
     });
   } catch (error) {
     console.error('Error sending message:', error);
+  }
+}
+
+async function sendPhoto(chatId, photoUrl, caption = '', replyMarkup = null) {
+  const payload = {
+    chat_id: chatId,
+    photo: photoUrl,
+    caption: caption,
+    parse_mode: 'HTML'
+  };
+  
+  if (replyMarkup) {
+    payload.reply_markup = replyMarkup;
+  }
+  
+  try {
+    await fetch(`${TELEGRAM_API}/sendPhoto`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (error) {
+    console.error('Error sending photo:', error);
+    await sendMessage(chatId, caption, 'HTML', replyMarkup);
   }
 }
 
@@ -154,6 +180,30 @@ async function answerCallbackQuery(callbackQueryId, text = '') {
   }
 }
 
+async function editMessageText(chatId, messageId, text, parseMode = 'HTML', replyMarkup = null) {
+  const payload = {
+    chat_id: chatId,
+    message_id: messageId,
+    text: text,
+    parse_mode: parseMode,
+    disable_web_page_preview: true
+  };
+  
+  if (replyMarkup) {
+    payload.reply_markup = replyMarkup;
+  }
+  
+  try {
+    await fetch(`${TELEGRAM_API}/editMessageText`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (error) {
+    console.error('Error editing message:', error);
+  }
+}
+
 function searchMovieInDatabase(query) {
   const movies = loadMovies();
   const results = [];
@@ -205,18 +255,18 @@ async function handleStartCommand(chatId, userName) {
   const welcomeMessage = `
 🎬 <b>Welcome to Movie Bot, ${userName}!</b>
 
-I can help you find and download movies.
+I can help you find and download movies in <b>720p</b> and <b>1080p</b> quality.
 
 <b>How to use:</b>
 • Just send me a movie name
 • Add year for better results: "Inception 2010"
-• I'll send you the movie file directly!
+• Choose your preferred quality (720p or 1080p)
+• Get the download link instantly!
 
 <b>Commands:</b>
 /search movie name - Search for a movie
 /help - Show help message
 /channels - Show T4TSA channels
-/addmovie - Add a movie to database (admin)
 
 <b>Examples:</b>
 • Inception
@@ -245,15 +295,16 @@ async function handleHelpCommand(chatId) {
 /help - Show this help
 /search name - Search for a movie
 /channels - T4TSA Telegram channels
-/addmovie - Add movie to database
 
 <b>How it works:</b>
 1. You send a movie name
-2. Bot searches the database
-3. You get the movie file directly!
+2. Bot searches T4TSA database
+3. Choose quality: 720p or 1080p
+4. Get the download link!
 
-<b>Don't see your movie?</b>
-Check T4TSA channels or request via @PhonoFilmBot
+<b>Available Qualities:</b>
+📺 720p - Good quality, smaller file
+📺 1080p - Full HD, larger file
   `;
   
   await sendMessage(chatId, helpMessage);
@@ -283,12 +334,123 @@ async function handleChannelsCommand(chatId) {
 
 <b>Website:</b>
 https://t4tsa.cc
-
-<i>Forward movie files from these channels to me, and I'll save them to the database!</i>
   `;
   
   await sendMessage(chatId, channelsMessage);
 }
+
+const movieCache = new Map();
+
+async function handleT4TSASearch(chatId, query) {
+  await sendMessage(chatId, `🔍 Searching for "<b>${query}</b>" on T4TSA...`);
+  
+  try {
+    const searchResult = await searchMovie(query);
+    
+    if (!searchResult.success || searchResult.results.length === 0) {
+      let message = `❌ No movies found for "<b>${query}</b>"\n\n`;
+      message += `<b>Try:</b>\n`;
+      message += `• Different spelling\n`;
+      message += `• Adding the year (e.g., "Inception 2010")\n`;
+      message += `• Searching on T4TSA website directly`;
+      
+      const buttons = [[
+        { text: '🔍 Search on T4TSA Website', url: `${T4TSA_BASE_URL}/?search=${encodeURIComponent(query)}` }
+      ]];
+      
+      await sendMessage(chatId, message, 'HTML', createInlineKeyboard(buttons));
+      return;
+    }
+
+    const results = searchResult.results;
+    
+    results.forEach(movie => {
+      movieCache.set(movie.id.toString(), movie);
+    });
+    
+    if (results.length === 1) {
+      await showMovieWithQualities(chatId, results[0]);
+    } else {
+      let message = `🎬 <b>Found ${results.length} movies for "${query}"</b>\n\n`;
+      message += `<i>Select a movie:</i>`;
+      
+      const buttons = results.map(movie => [{
+        text: `🎬 ${movie.title} (${movie.year}) ⭐${movie.rating}`,
+        callback_data: `movie_${movie.id}`
+      }]);
+      
+      await sendMessage(chatId, message, 'HTML', createInlineKeyboard(buttons));
+    }
+    
+  } catch (error) {
+    console.error('T4TSA search error:', error);
+    await sendMessage(chatId, '❌ Error searching. Please try again later.');
+  }
+}
+
+async function showMovieWithQualities(chatId, movie) {
+  try {
+    const downloads = await getMovieDownloads(movie.id);
+    const t4tsaUrl = `${T4TSA_BASE_URL}/movie/${movie.id}`;
+    
+    let message = `🎬 <b>${movie.title}</b> (${movie.year})\n`;
+    message += `⭐ Rating: ${movie.rating}/10\n\n`;
+    
+    if (movie.overview) {
+      message += `📝 ${movie.overview}\n\n`;
+    }
+    
+    const buttons = [];
+    
+    if (downloads.success) {
+      const count720 = downloads.counts['720p'] || 0;
+      const count1080 = downloads.counts['1080p'] || 0;
+      
+      if (count720 > 0 || count1080 > 0) {
+        message += `<b>Available on T4TSA:</b>\n`;
+        
+        if (count720 > 0) {
+          message += `📺 720p: ${count720} files\n`;
+        }
+        
+        if (count1080 > 0) {
+          message += `📺 1080p: ${count1080} files\n`;
+        }
+        
+        message += `\n<i>Tap below to open T4TSA and download:</i>`;
+        
+        buttons.push([{
+          text: `📥 Download from T4TSA`,
+          url: t4tsaUrl
+        }]);
+      } else {
+        message += `⚠️ No 720p/1080p files found.\n`;
+        message += `<i>Check T4TSA for other qualities:</i>`;
+        buttons.push([{
+          text: '🌐 View on T4TSA',
+          url: t4tsaUrl
+        }]);
+      }
+    } else {
+      message += `<i>Tap below to view downloads on T4TSA:</i>`;
+      buttons.push([{
+        text: '🌐 View on T4TSA',
+        url: t4tsaUrl
+      }]);
+    }
+    
+    if (movie.poster) {
+      await sendPhoto(chatId, movie.poster, message, createInlineKeyboard(buttons));
+    } else {
+      await sendMessage(chatId, message, 'HTML', createInlineKeyboard(buttons));
+    }
+    
+  } catch (error) {
+    console.error('Show movie error:', error);
+    await sendMessage(chatId, '❌ Error fetching movie details. Please try again.');
+  }
+}
+
 
 async function handleSearchCommand(chatId, query) {
   if (!query || query.trim() === '') {
@@ -296,15 +458,13 @@ async function handleSearchCommand(chatId, query) {
     return;
   }
   
-  await sendMessage(chatId, `🔍 Searching for "<b>${query}</b>"...`);
+  const localResults = searchMovieInDatabase(query);
   
-  const results = searchMovieInDatabase(query);
-  
-  if (results && results.length > 0) {
-    const bestMatch = results[0];
+  if (localResults && localResults.length > 0) {
+    const bestMatch = localResults[0];
     const caption = `🎬 <b>${bestMatch.name}</b> (${bestMatch.year})\n📊 Quality: ${bestMatch.quality}\n📁 Size: ${bestMatch.size || 'Unknown'}`;
     
-    await sendMessage(chatId, `⏳ Sending <b>${bestMatch.name}</b>...`);
+    await sendMessage(chatId, `⏳ Sending <b>${bestMatch.name}</b> from local database...`);
     
     if (bestMatch.fileType === 'video') {
       await sendVideo(chatId, bestMatch.fileId, caption);
@@ -312,33 +472,26 @@ async function handleSearchCommand(chatId, query) {
       await sendDocument(chatId, bestMatch.fileId, caption);
     }
     
-    if (results.length > 1) {
+    if (localResults.length > 1) {
       const buttons = [];
-      results.slice(1, 6).forEach(movie => {
+      localResults.slice(1, 6).forEach(movie => {
         buttons.push([{
           text: `📁 ${movie.name} (${movie.year}) - ${movie.quality}`,
           callback_data: `dl_${movie.index}`
         }]);
       });
       
+      buttons.push([{
+        text: '🔍 Search more on T4TSA',
+        callback_data: `t4tsa_${encodeURIComponent(query)}`
+      }]);
+      
       if (buttons.length > 0) {
-        await sendMessage(chatId, `📋 <b>Other versions available:</b>`, 'HTML', createInlineKeyboard(buttons));
+        await sendMessage(chatId, `📋 <b>Other options:</b>`, 'HTML', createInlineKeyboard(buttons));
       }
     }
   } else {
-    let message = `❌ No results found for "<b>${query}</b>" in database.\n\n`;
-    message += `<b>Options:</b>\n`;
-    message += `1. Try different spelling\n`;
-    message += `2. Search in T4TSA channels:\n`;
-    message += `   @IrisMoviesX\n`;
-    message += `   @PhonoFilmBot\n\n`;
-    message += `<i>Forward movie files from those channels to me, and I'll add them!</i>`;
-    
-    const buttons = [[
-      { text: '🔍 Search on T4TSA', url: `https://t4tsa.cc/search?q=${encodeURIComponent(query)}` }
-    ]];
-    
-    await sendMessage(chatId, message, 'HTML', createInlineKeyboard(buttons));
+    await handleT4TSASearch(chatId, query);
   }
 }
 
@@ -587,6 +740,7 @@ async function handleMessage(message) {
 
 async function handleCallbackQuery(callbackQuery) {
   const chatId = callbackQuery.message.chat.id;
+  const messageId = callbackQuery.message.message_id;
   const data = callbackQuery.data;
   const queryId = callbackQuery.id;
   
@@ -595,6 +749,27 @@ async function handleCallbackQuery(callbackQuery) {
   if (data.startsWith('dl_')) {
     const movieIndex = parseInt(data.substring(3));
     await handleDownload(chatId, movieIndex);
+    return;
+  }
+  
+  if (data.startsWith('movie_')) {
+    const movieId = data.substring(6);
+    const cachedMovie = movieCache.get(movieId);
+    
+    if (cachedMovie) {
+      await showMovieWithQualities(chatId, cachedMovie);
+    } else {
+      const t4tsaUrl = `${T4TSA_BASE_URL}/movie/${movieId}`;
+      await sendMessage(chatId, `🎬 View this movie on T4TSA:\n${t4tsaUrl}`, 'HTML', createInlineKeyboard([[
+        { text: '🌐 Open on T4TSA', url: t4tsaUrl }
+      ]]));
+    }
+    return;
+  }
+  
+  if (data.startsWith('t4tsa_')) {
+    const query = decodeURIComponent(data.substring(6));
+    await handleT4TSASearch(chatId, query);
     return;
   }
 }
@@ -647,20 +822,43 @@ app.get('/', (req, res) => {
             margin: 20px 0;
             color: ${BOT_TOKEN ? '#155724' : '#721c24'};
           }
+          .tmdb-status {
+            background: ${TMDB_API_KEY ? '#d4edda' : '#fff3cd'};
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            color: ${TMDB_API_KEY ? '#155724' : '#856404'};
+            font-size: 14px;
+          }
           code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; }
           .commands { background: #f8f9fa; padding: 15px; border-radius: 8px; }
           .commands h3 { margin-top: 0; color: #333; }
           .commands ul { margin: 0; padding-left: 20px; }
           .commands li { margin: 8px 0; }
+          .feature { 
+            background: #e7f3ff; 
+            padding: 10px; 
+            border-radius: 8px; 
+            margin: 10px 0;
+            border-left: 4px solid #0088cc;
+          }
         </style>
       </head>
       <body>
         <div class="container">
           <h1>🎬 Movie Bot</h1>
-          <p>A Telegram bot for searching and downloading movies.</p>
+          <p>A Telegram bot for searching and downloading movies from T4TSA.</p>
           
           <div class="status">
-            <strong>Status:</strong> ${BOT_TOKEN ? '✅ Bot token configured' : '❌ BOT_TOKEN not set'}
+            <strong>Bot Token:</strong> ${BOT_TOKEN ? '✅ Configured' : '❌ Not set'}
+          </div>
+          
+          <div class="tmdb-status">
+            <strong>TMDB API:</strong> ${TMDB_API_KEY ? '✅ Configured (Movie search enabled)' : '⚠️ Not set (Set TMDB_API_KEY for search)'}
+          </div>
+          
+          <div class="feature">
+            <strong>🆕 T4TSA Integration:</strong> Search movies and get 720p/1080p download links directly from T4TSA.cc
           </div>
           
           <div class="commands">
@@ -670,7 +868,6 @@ app.get('/', (req, res) => {
               <li><code>/help</code> - Show help message</li>
               <li><code>/search movie</code> - Search for a movie</li>
               <li><code>/channels</code> - Show T4TSA channels</li>
-              <li><code>/addmovie</code> - Add movie to database (admin)</li>
             </ul>
           </div>
           
@@ -684,11 +881,17 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    bot_configured: !!BOT_TOKEN,
+    tmdb_configured: !!TMDB_API_KEY
+  });
 });
 
 const PORT = 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Movie Bot server running on port ${PORT}`);
   console.log(`Bot token configured: ${BOT_TOKEN ? 'Yes' : 'No'}`);
+  console.log(`TMDB API configured: ${TMDB_API_KEY ? 'Yes' : 'No'}`);
 });

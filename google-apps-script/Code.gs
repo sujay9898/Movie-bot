@@ -642,9 +642,23 @@ function handleChannelsCommand(chatId) {
 }
 
 function handleT4TSASearch(chatId, query) {
-  sendMessage(chatId, '🔍 Searching for "<b>' + query + '</b>" on T4TSA...');
+  sendMessage(chatId, '🔍 Searching for "<b>' + query + '</b>"...');
   
   try {
+    // Check if TMDB API key is configured
+    if (!TMDB_API_KEY || TMDB_API_KEY === 'YOUR_TMDB_API_KEY') {
+      // No TMDB key - direct link to T4TSA
+      var message = '🎬 <b>Search: ' + query + '</b>\n\n';
+      message += '📥 Click below to find this movie on T4TSA:';
+      
+      const buttons = [[
+        { text: '🔍 Search on T4TSA', url: T4TSA_BASE_URL + '/?s=' + encodeURIComponent(query) }
+      ]];
+      
+      sendMessage(chatId, message, 'HTML', createInlineKeyboard(buttons));
+      return;
+    }
+    
     const searchResult = searchMovieOnTMDB(query);
     
     if (!searchResult.success || searchResult.results.length === 0) {
@@ -655,7 +669,7 @@ function handleT4TSASearch(chatId, query) {
       message += '• Searching on T4TSA website directly';
       
       const buttons = [[
-        { text: '🔍 Search on T4TSA Website', url: T4TSA_BASE_URL + '/?search=' + encodeURIComponent(query) }
+        { text: '🔍 Search on T4TSA Website', url: T4TSA_BASE_URL + '/?s=' + encodeURIComponent(query) }
       ]];
       
       sendMessage(chatId, message, 'HTML', createInlineKeyboard(buttons));
@@ -1038,7 +1052,12 @@ function handleMessage(message) {
   
   // Regular text = search for movie
   if (text.length > 0) {
-    handleSearchCommand(chatId, text);
+    try {
+      handleSearchCommand(chatId, text);
+    } catch (error) {
+      Logger.log('Search error: ' + error);
+      sendMessage(chatId, '❌ Error processing your request. Please try again.');
+    }
   }
 }
 

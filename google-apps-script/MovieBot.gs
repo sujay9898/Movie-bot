@@ -21,6 +21,28 @@ const TMDB_API_KEY = 'YOUR_TMDB_API_KEY'; // Optional: for movie info
 // WEBHOOK SETUP FUNCTIONS
 // ==========================================
 
+// RUN THIS FIRST TO FIX THE SPAMMING ISSUE!
+function clearAndSetWebhook() {
+  // Step 1: Delete old webhook and DROP all pending messages
+  const deleteUrl = `${TELEGRAM_API}/deleteWebhook?drop_pending_updates=true`;
+  const deleteResponse = UrlFetchApp.fetch(deleteUrl);
+  Logger.log('Delete webhook: ' + deleteResponse.getContentText());
+  
+  // Wait 2 seconds
+  Utilities.sleep(2000);
+  
+  // Step 2: Set new webhook with drop_pending_updates
+  const setUrl = `${TELEGRAM_API}/setWebhook?url=${WEB_APP_URL}&drop_pending_updates=true`;
+  const setResponse = UrlFetchApp.fetch(setUrl);
+  Logger.log('Set webhook: ' + setResponse.getContentText());
+  
+  // Step 3: Verify
+  Utilities.sleep(1000);
+  const infoUrl = `${TELEGRAM_API}/getWebhookInfo`;
+  const infoResponse = UrlFetchApp.fetch(infoUrl);
+  Logger.log('Webhook info: ' + infoResponse.getContentText());
+}
+
 function setWebhook() {
   const url = `${TELEGRAM_API}/setWebhook?url=${WEB_APP_URL}`;
   const response = UrlFetchApp.fetch(url);
@@ -28,7 +50,7 @@ function setWebhook() {
 }
 
 function deleteWebhook() {
-  const url = `${TELEGRAM_API}/deleteWebhook`;
+  const url = `${TELEGRAM_API}/deleteWebhook?drop_pending_updates=true`;
   const response = UrlFetchApp.fetch(url);
   Logger.log(response.getContentText());
 }

@@ -22,6 +22,8 @@
     "url": ""
   },
   "dependencies": {
+    "axios": "^1.13.2",
+    "cheerio": "^1.1.2",
     "express": "^4.21.2",
     "node-fetch": "^3.3.2"
   }

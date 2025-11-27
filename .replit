@@ -15,10 +15,10 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Movie Bot"
+args = "Movie Bot Info"
 
 [[workflows.workflow]]
-name = "Movie Bot"
+name = "Movie Bot Info"
 author = "agent"
 
 [[workflows.workflow.tasks]]
@@ -34,12 +34,8 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 36123
+localPort = 35443
 externalPort = 3000
-
-[[ports]]
-localPort = 44761
-externalPort = 3001
 
 [deployment]
 deploymentTarget = "autoscale"

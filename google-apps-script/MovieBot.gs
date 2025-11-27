@@ -687,65 +687,75 @@ function doPost(e) {
 function handleMessage(message) {
   const chatId = message.chat.id;
   const userId = message.from.id;
-  const text = message.text || '';
+  const text = (message.text || '').trim();
   const userName = message.from.first_name || 'User';
   
+  // Log for debugging
+  Logger.log('Received message: ' + text + ' from chat: ' + chatId);
+  
+  // Handle forwarded files first
   if (message.forward_from || message.forward_from_chat) {
     if (handleForwardedFile(message, chatId)) {
       return;
     }
   }
   
+  // Handle direct file uploads
   if (message.document || message.video) {
     handleForwardedFile(message, chatId);
     return;
   }
   
-  if (text.startsWith('/start')) {
+  // Handle commands - check with lowercase and handle bot username suffix
+  const command = text.toLowerCase().split('@')[0]; // Remove @botname suffix
+  
+  if (command === '/start' || text.toLowerCase().startsWith('/start ')) {
     handleStartCommand(chatId, userName);
     return;
   }
   
-  if (text.startsWith('/help')) {
+  if (command === '/help' || text.toLowerCase().startsWith('/help ')) {
     handleHelpCommand(chatId);
     return;
   }
   
-  if (text.startsWith('/channels')) {
+  if (command === '/channels' || text.toLowerCase().startsWith('/channels ')) {
     handleChannelsCommand(chatId);
     return;
   }
   
-  if (text.startsWith('/search ')) {
+  if (text.toLowerCase().startsWith('/search ')) {
     const query = text.substring(8).trim();
     handleSearchCommand(chatId, query);
     return;
   }
   
-  if (text.startsWith('/addmovie')) {
+  if (command === '/addmovie' || text.toLowerCase().startsWith('/addmovie ')) {
     handleAddMovie(chatId, userId);
     return;
   }
   
-  if (text.startsWith('/save ')) {
+  if (text.toLowerCase().startsWith('/save ')) {
     const args = text.substring(6).trim();
     handleSaveCommand(chatId, args);
     return;
   }
   
-  if (text.startsWith('/get_')) {
+  if (text.toLowerCase().startsWith('/get_')) {
     const index = parseInt(text.substring(5));
     handleDownload(chatId, index + 2);
     return;
   }
   
+  // Unknown command
   if (text.startsWith('/')) {
     sendMessage(chatId, '❌ Unknown command. Type /help for available commands.');
     return;
   }
   
-  if (text.trim().length > 0) {
-    handleSearchCommand(chatId, text.trim());
+  // Regular text = search for movie
+  if (text.length > 0) {
+    handleSearchCommand(chatId, text);
   }
 }
 

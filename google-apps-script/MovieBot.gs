@@ -690,6 +690,20 @@ function formatFileSize(bytes) {
 function doPost(e) {
   try {
     const update = JSON.parse(e.postData.contents);
+    const updateId = update.update_id;
+    
+    // DEDUPLICATION: Prevent processing same message multiple times
+    const cache = CacheService.getScriptCache();
+    const cacheKey = 'processed_' + updateId;
+    
+    if (cache.get(cacheKey)) {
+      // Already processed this update - skip it
+      return ContentService.createTextOutput(JSON.stringify({ok: true}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // Mark as processed (cache for 10 minutes)
+    cache.put(cacheKey, 'true', 600);
     
     if (update.message) {
       handleMessage(update.message);
@@ -703,7 +717,9 @@ function doPost(e) {
     Logger.log('doPost error: ' + error);
   }
   
-  return ContentService.createTextOutput('OK');
+  // Return proper JSON response to prevent Telegram retries
+  return ContentService.createTextOutput(JSON.stringify({ok: true}))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function handleMessage(message) {

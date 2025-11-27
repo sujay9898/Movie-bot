@@ -132,6 +132,17 @@ app.get('/', (req, res) => {
             <p>Google Apps Script provides free hosting with Google Sheets as database, making it perfect for Telegram bots without server costs.</p>
         </div>
         
+        <div class="feature-box" style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px;">
+            <h3 style="color: #e65100; margin-bottom: 10px;">T4TSA Scraping Features</h3>
+            <ul style="margin: 0; padding-left: 20px;">
+                <li>TMDB movie search integration</li>
+                <li>T4TSA page scraping for downloads</li>
+                <li>720p and 1080p quality detection</li>
+                <li>Automatic caching (1 hour)</li>
+                <li>Google Sheets database for saved movies</li>
+            </ul>
+        </div>
+        
         <div class="file-location">
             <h3>Code Location</h3>
             <p>The Google Apps Script code is saved at:</p>

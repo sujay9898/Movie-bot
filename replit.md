@@ -38,8 +38,10 @@ A Telegram bot for searching and downloading movies from T4TSA.cc. Supports both
 1. User sends movie name (e.g., "Inception 2010")
 2. Bot searches TMDB for the movie → gets TMDB ID
 3. Bot fetches T4TSA.cc page using TMDB ID
-4. Bot shows available 720p and 1080p download options
-5. User clicks to download from T4TSA
+4. Bot shows available 720p and 1080p file counts
+5. User taps button to open T4TSA movie page and download
+
+**Note**: T4TSA uses JavaScript to generate download links, so the bot directs users to the T4TSA website for actual downloads rather than extracting Telegram file links directly.
 
 ## Bot Commands
 | Command | Description |

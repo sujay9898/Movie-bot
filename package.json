@@ -1,12 +1,25 @@
 {
   "name": "telegram-movie-bot",
   "version": "1.0.0",
-  "description": "Telegram Movie Bot",
+  "description": "Telegram Movie Bot - Search and download movies via Telegram",
   "main": "src/index.js",
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
+    "status": "node src/status.js",
     "dev": "node src/index.js"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "movie",
+    "google-apps-script"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": ""
   },
   "dependencies": {
     "express": "^4.21.2",

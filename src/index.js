@@ -301,30 +301,30 @@ async function handleSearchCommand(chatId, query) {
   const results = searchMovieInDatabase(query);
   
   if (results && results.length > 0) {
-    const buttons = [];
-    const uniqueMovies = {};
+    const bestMatch = results[0];
+    const caption = `🎬 <b>${bestMatch.name}</b> (${bestMatch.year})\n📊 Quality: ${bestMatch.quality}\n📁 Size: ${bestMatch.size || 'Unknown'}`;
     
-    results.slice(0, 10).forEach((movie) => {
-      const key = `${movie.name}_${movie.year}`;
-      if (!uniqueMovies[key]) {
-        uniqueMovies[key] = [];
-      }
-      uniqueMovies[key].push(movie);
-    });
+    await sendMessage(chatId, `⏳ Sending <b>${bestMatch.name}</b>...`);
     
-    for (const [key, versions] of Object.entries(uniqueMovies)) {
-      versions.forEach(movie => {
+    if (bestMatch.fileType === 'video') {
+      await sendVideo(chatId, bestMatch.fileId, caption);
+    } else {
+      await sendDocument(chatId, bestMatch.fileId, caption);
+    }
+    
+    if (results.length > 1) {
+      const buttons = [];
+      results.slice(1, 6).forEach(movie => {
         buttons.push([{
           text: `📁 ${movie.name} (${movie.year}) - ${movie.quality}`,
           callback_data: `dl_${movie.index}`
         }]);
       });
+      
+      if (buttons.length > 0) {
+        await sendMessage(chatId, `📋 <b>Other versions available:</b>`, 'HTML', createInlineKeyboard(buttons));
+      }
     }
-    
-    let message = `🎬 <b>Found ${results.length} result(s) for "${query}"</b>\n\n`;
-    message += `<i>Tap a button below to download:</i>`;
-    
-    await sendMessage(chatId, message, 'HTML', createInlineKeyboard(buttons));
   } else {
     let message = `❌ No results found for "<b>${query}</b>" in database.\n\n`;
     message += `<b>Options:</b>\n`;

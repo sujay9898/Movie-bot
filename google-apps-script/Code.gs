@@ -2,30 +2,41 @@
 // TELEGRAM MOVIE BOT - GOOGLE APPS SCRIPT
 // WITH T4TSA SCRAPING
 // ==========================================
+// 
+// A Telegram bot that searches movies via TMDB API
+// and provides download links from T4TSA website.
+// 
+// Author: Your Name
+// Version: 1.0.0
+// Last Updated: 2025
+// ==========================================
 
-// CONFIGURATION
-const BOT_TOKEN = '8022257010:AAGG5pNILYBtSGCbZY6wNeUwjCknccZDq_8';
+// ==========================================
+// CONFIGURATION - Replace with your values
+// ==========================================
+
+const BOT_TOKEN = 'YOUR_BOT_TOKEN';  // Get from @BotFather on Telegram
 const TELEGRAM_API = 'https://api.telegram.org/bot' + BOT_TOKEN;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw1PN5RyHoTq6MOgVsOVhr97lFXsaEf5ZRWTyri83iVxy-bnie3_eHLPwgHvbyTd6R1tg/exec';
+const WEB_APP_URL = 'YOUR_WEB_APP_URL';  // Your deployed Google Apps Script URL
 
-// Google Sheet Database
-const SPREADSHEET_ID = '1oi0ts8bW6FClMiPRkie3mJt_zk5MJ7wVSwDr4T_1XKg';
+const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID';  // Google Sheet ID for database
 const MOVIES_SHEET_NAME = 'Movies';
 
-// T4TSA Configuration
 const T4TSA_BASE_URL = 'https://t4tsa.cc';
 
-// TMDB API
-const TMDB_API_KEY = '19861d6a9e6917178763eb4dadcc1b2f';
+const TMDB_API_KEY = 'YOUR_TMDB_API_KEY';  // Get from themoviedb.org
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
-// Admin IDs
 const ADMIN_IDS = ['YOUR_TELEGRAM_USER_ID'];
 
 // ==========================================
 // WEBHOOK SETUP FUNCTIONS
 // ==========================================
 
+/**
+ * Clears old webhooks and sets up a new one
+ * Run this after deploying a new version
+ */
 function clearAndSetWebhook() {
   Logger.log('=== CLEARING OLD WEBHOOKS ===');
   
@@ -45,8 +56,20 @@ function clearAndSetWebhook() {
   Logger.log('Webhook info: ' + info.getContentText());
 }
 
+/**
+ * Gets current webhook information
+ */
 function getWebhookInfo() {
   var url = TELEGRAM_API + '/getWebhookInfo';
+  var response = UrlFetchApp.fetch(url);
+  Logger.log(response.getContentText());
+}
+
+/**
+ * Deletes the current webhook
+ */
+function deleteWebhook() {
+  var url = TELEGRAM_API + '/deleteWebhook?drop_pending_updates=true';
   var response = UrlFetchApp.fetch(url);
   Logger.log(response.getContentText());
 }
@@ -55,6 +78,9 @@ function getWebhookInfo() {
 // TELEGRAM MESSAGE FUNCTIONS
 // ==========================================
 
+/**
+ * Sends a text message to a Telegram chat
+ */
 function sendMessage(chatId, text, parseMode, replyMarkup) {
   var payload = {
     chat_id: chatId,
@@ -81,6 +107,9 @@ function sendMessage(chatId, text, parseMode, replyMarkup) {
   }
 }
 
+/**
+ * Sends a photo with caption to a Telegram chat
+ */
 function sendPhoto(chatId, photoUrl, caption, replyMarkup) {
   var payload = {
     chat_id: chatId,
@@ -108,6 +137,9 @@ function sendPhoto(chatId, photoUrl, caption, replyMarkup) {
   }
 }
 
+/**
+ * Answers a callback query from inline keyboard
+ */
 function answerCallbackQuery(callbackQueryId, text) {
   var payload = {
     callback_query_id: callbackQueryId,
@@ -128,6 +160,9 @@ function answerCallbackQuery(callbackQueryId, text) {
   }
 }
 
+/**
+ * Creates an inline keyboard markup
+ */
 function createInlineKeyboard(buttons) {
   return JSON.stringify({
     inline_keyboard: buttons
@@ -138,6 +173,9 @@ function createInlineKeyboard(buttons) {
 // TMDB SEARCH FUNCTIONS
 // ==========================================
 
+/**
+ * Parses a search query to extract movie name and year
+ */
 function parseQueryForYear(query) {
   var yearMatch = query.match(/\b(19|20)\d{2}\b/);
   var movieName = query;
@@ -151,6 +189,9 @@ function parseQueryForYear(query) {
   return { movieName: movieName, year: year };
 }
 
+/**
+ * Searches TMDB for movies
+ */
 function searchTMDB(query, year) {
   try {
     var url = TMDB_BASE_URL + '/search/movie?api_key=' + TMDB_API_KEY + 
@@ -178,6 +219,9 @@ function searchTMDB(query, year) {
   }
 }
 
+/**
+ * Searches for a movie and formats results
+ */
 function searchMovieOnTMDB(query) {
   var parsed = parseQueryForYear(query);
   
@@ -215,9 +259,12 @@ function searchMovieOnTMDB(query) {
 }
 
 // ==========================================
-// T4TSA FUNCTIONS
+// T4TSA SCRAPING FUNCTIONS
 // ==========================================
 
+/**
+ * Fetches a movie page from T4TSA
+ */
 function fetchT4TSAPage(tmdbId) {
   try {
     var url = T4TSA_BASE_URL + '/movie/' + tmdbId;
@@ -239,6 +286,9 @@ function fetchT4TSAPage(tmdbId) {
   }
 }
 
+/**
+ * Parses T4TSA page to find available download qualities
+ */
 function parseT4TSADownloads(html) {
   var downloads = {
     '720p': [],
@@ -248,7 +298,6 @@ function parseT4TSADownloads(html) {
 
   if (!html) return downloads;
 
-  // Find quality mentions
   var qualityRegex = /(720p|1080p)/gi;
   var match;
   
@@ -261,13 +310,15 @@ function parseT4TSADownloads(html) {
     }
   }
 
-  // Remove duplicates
   downloads['720p'] = downloads['720p'].slice(0, 1);
   downloads['1080p'] = downloads['1080p'].slice(0, 1);
 
   return downloads;
 }
 
+/**
+ * Gets download information from T4TSA with caching
+ */
 function getT4TSADownloads(tmdbId) {
   try {
     var cache = CacheService.getScriptCache();
@@ -301,7 +352,6 @@ function getT4TSADownloads(tmdbId) {
       }
     };
     
-    // Cache for 1 hour
     try {
       cache.put(cacheKey, JSON.stringify(result), 3600);
     } catch(e) {}
@@ -320,6 +370,9 @@ function getT4TSADownloads(tmdbId) {
 // CACHE FUNCTIONS
 // ==========================================
 
+/**
+ * Caches a movie object for 1 hour
+ */
 function cacheMovie(movie) {
   try {
     var cache = CacheService.getScriptCache();
@@ -329,6 +382,9 @@ function cacheMovie(movie) {
   }
 }
 
+/**
+ * Retrieves a cached movie by ID
+ */
 function getCachedMovie(movieId) {
   try {
     var cache = CacheService.getScriptCache();
@@ -344,6 +400,9 @@ function getCachedMovie(movieId) {
 // COMMAND HANDLERS
 // ==========================================
 
+/**
+ * Handles the /start command
+ */
 function handleStartCommand(chatId, userName) {
   var message = '🎬 <b>Welcome to Movie Bot, ' + userName + '!</b>\n\n' +
     'I can help you find movies from T4TSA.\n\n' +
@@ -359,6 +418,9 @@ function handleStartCommand(chatId, userName) {
   sendMessage(chatId, message);
 }
 
+/**
+ * Handles the /help command
+ */
 function handleHelpCommand(chatId) {
   var message = '🎬 <b>Movie Bot Help</b>\n\n' +
     '<b>Search Methods:</b>\n' +
@@ -375,6 +437,9 @@ function handleHelpCommand(chatId) {
   sendMessage(chatId, message);
 }
 
+/**
+ * Handles the /channels command
+ */
 function handleChannelsCommand(chatId) {
   var message = '📺 <b>T4TSA Telegram Channels</b>\n\n' +
     '<b>Movies:</b> @IrisMoviesX\n' +
@@ -386,6 +451,9 @@ function handleChannelsCommand(chatId) {
   sendMessage(chatId, message);
 }
 
+/**
+ * Handles movie search command
+ */
 function handleSearchCommand(chatId, query) {
   if (!query || query.trim() === '') {
     sendMessage(chatId, '❌ Please provide a movie name.\n\nExample: /search Inception');
@@ -418,7 +486,6 @@ function handleSearchCommand(chatId, query) {
 
     var results = searchResult.results;
     
-    // Cache results
     for (var i = 0; i < results.length; i++) {
       cacheMovie(results[i]);
     }
@@ -447,6 +514,9 @@ function handleSearchCommand(chatId, query) {
   }
 }
 
+/**
+ * Shows detailed movie information with download button
+ */
 function showMovieDetails(chatId, movie) {
   try {
     var t4tsaUrl = T4TSA_BASE_URL + '/movie/' + movie.id;
@@ -458,7 +528,6 @@ function showMovieDetails(chatId, movie) {
       message = message + '📝 ' + movie.overview + '\n\n';
     }
     
-    // Try to get T4TSA info
     var downloads = getT4TSADownloads(movie.id);
     
     if (downloads.success && (downloads.available['720p'] || downloads.available['1080p'])) {
@@ -492,16 +561,18 @@ function showMovieDetails(chatId, movie) {
 }
 
 // ==========================================
-// MAIN HANDLERS
+// MAIN WEBHOOK HANDLERS
 // ==========================================
 
+/**
+ * Handles incoming POST requests from Telegram webhook
+ */
 function doPost(e) {
   try {
     var update = JSON.parse(e.postData.contents);
     
     Logger.log('Received update: ' + JSON.stringify(update).substring(0, 500));
     
-    // Deduplication
     var updateId = update.update_id;
     var cache = CacheService.getScriptCache();
     var cacheKey = 'processed_' + updateId;
@@ -529,6 +600,9 @@ function doPost(e) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+/**
+ * Routes incoming messages to appropriate handlers
+ */
 function handleMessage(message) {
   try {
     var chatId = message.chat.id;
@@ -541,7 +615,6 @@ function handleMessage(message) {
       return;
     }
     
-    // Commands
     var lowerText = text.toLowerCase();
     
     if (lowerText === '/start' || lowerText.indexOf('/start ') === 0) {
@@ -565,13 +638,11 @@ function handleMessage(message) {
       return;
     }
     
-    // Unknown command
     if (text.charAt(0) === '/') {
       sendMessage(chatId, '❌ Unknown command. Type /help for available commands.');
       return;
     }
     
-    // Regular text = search for movie
     handleSearchCommand(chatId, text);
     
   } catch (error) {
@@ -582,6 +653,9 @@ function handleMessage(message) {
   }
 }
 
+/**
+ * Handles callback queries from inline keyboards
+ */
 function handleCallbackQuery(callbackQuery) {
   try {
     var chatId = callbackQuery.message.chat.id;
@@ -590,7 +664,6 @@ function handleCallbackQuery(callbackQuery) {
     
     answerCallbackQuery(queryId);
     
-    // Movie selection
     if (data.indexOf('movie_') === 0) {
       var movieId = data.substring(6);
       var cachedMovie = getCachedMovie(movieId);
@@ -610,6 +683,9 @@ function handleCallbackQuery(callbackQuery) {
   }
 }
 
+/**
+ * Handles GET requests - shows bot status
+ */
 function doGet(e) {
   return HtmlService.createHtmlOutput(
     '<h1>🎬 Movie Bot</h1>' +
@@ -622,11 +698,17 @@ function doGet(e) {
 // TEST FUNCTIONS
 // ==========================================
 
+/**
+ * Test function for TMDB search
+ */
 function testTMDB() {
   var results = searchMovieOnTMDB('Avatar 2009');
   Logger.log(JSON.stringify(results, null, 2));
 }
 
+/**
+ * Test function for basic TMDB API call
+ */
 function testSearch() {
   var results = searchTMDB('Avatar', '2009');
   Logger.log(JSON.stringify(results, null, 2));

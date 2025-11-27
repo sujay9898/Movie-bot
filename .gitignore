@@ -28,7 +28,7 @@ pids/
 .DS_Store
 Thumbs.db
 
-# Replit
+# Replit specific
 .replit
 replit.nix
 .cache/
@@ -39,4 +39,9 @@ replit.nix
 # Temporary files
 *.tmp
 *.temp
+
+# Attached assets (user uploads)
 attached_assets/
+
+# Data files with sensitive info
+data/user_temp.json

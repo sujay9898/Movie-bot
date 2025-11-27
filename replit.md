@@ -1,47 +1,39 @@
 # Telegram Movie Bot
 
 ## Overview
-A Telegram bot for searching and downloading movies from T4TSA.cc. Supports both **Google Apps Script** (recommended, free) and **Node.js** deployments.
+A Telegram bot for searching and downloading movies from T4TSA.cc. Runs on **Google Apps Script** (free, serverless, recommended).
 
 ## Project Structure
 ```
 /
 ├── google-apps-script/
-│   ├── MovieBot.gs       # Complete Google Apps Script code
-│   └── SETUP_GUIDE.md    # Setup instructions for GAS
+│   └── Code.gs              # Complete Google Apps Script code
 ├── src/
-│   ├── index.js          # Node.js bot with T4TSA integration
-│   ├── status.js         # Simple status page
-│   └── t4tsa-scraper.js  # T4TSA.cc scraper module
+│   └── index.js             # Node.js version (alternative)
 ├── data/
-│   ├── movies.json       # Local movie database
-│   └── user_temp.json    # Temporary user data
-├── package.json          # Node.js dependencies
-└── .gitignore            # Git ignore rules
+│   └── movies.json          # Local movie database
+├── README.md                # Setup instructions
+├── replit.md                # This file
+└── .gitignore               # Git ignore rules
 ```
 
-## Environment Variables Required
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `BOT_TOKEN` | Telegram Bot Token from @BotFather | Yes |
-| `TMDB_API_KEY` | TMDB API key for movie search | Yes (for T4TSA search) |
-| `ADMIN_IDS` | Comma-separated Telegram user IDs | Optional |
+## Configuration (Google Apps Script)
+Replace these values in `google-apps-script/Code.gs`:
+
+| Constant | Description | How to Get |
+|----------|-------------|------------|
+| `BOT_TOKEN` | Telegram Bot Token | @BotFather on Telegram |
+| `WEB_APP_URL` | Deployed script URL | Deploy > New deployment |
+| `TMDB_API_KEY` | TMDB API key | themoviedb.org/settings/api |
+| `SPREADSHEET_ID` | Google Sheet ID | From sheet URL (optional) |
 
 ## Key Features
-- **T4TSA Integration**: Search movies on T4TSA.cc via TMDB
-- **Quality Selection**: Choose between 720p and 1080p downloads
-- **Movie search by name/year**: Add year for accurate results
-- **Local database**: Store movies with Telegram file IDs
-- **Admin controls**: Add movies to local database
-
-## How It Works
-1. User sends movie name (e.g., "Inception 2010")
-2. Bot searches TMDB for the movie → gets TMDB ID
-3. Bot fetches T4TSA.cc page using TMDB ID
-4. Bot shows available 720p and 1080p file counts
-5. User taps button to open T4TSA movie page and download
-
-**Note**: T4TSA uses JavaScript to generate download links, so the bot directs users to the T4TSA website for actual downloads rather than extracting Telegram file links directly.
+- TMDB API integration for movie search
+- T4TSA.cc download link generation
+- Quality detection (720p/1080p)
+- Caching with CacheService (1 hour)
+- Movie poster and rating display
+- Year-aware search ("Avatar 2009")
 
 ## Bot Commands
 | Command | Description |
@@ -50,24 +42,35 @@ A Telegram bot for searching and downloading movies from T4TSA.cc. Supports both
 | `/help` | Show help |
 | `/search <movie>` | Search for a movie |
 | `/channels` | Show T4TSA channels |
-| `/addmovie` | Add movie (admin) |
-| `/save` | Save forwarded file |
+
+## Deployment Steps
+1. Copy `Code.gs` to Google Apps Script
+2. Update configuration constants
+3. Deploy as Web App (anyone can access)
+4. Copy deployed URL to `WEB_APP_URL`
+5. Deploy again with updated URL
+6. Run `clearAndSetWebhook` function
 
 ## Recent Changes
-- 2025-11-27: Added T4TSA.cc scraper integration
-- 2025-11-27: Added 720p/1080p quality selection
+- 2025-11-27: Fixed movie search not responding bug
+- 2025-11-27: Removed template literals for GAS compatibility
+- 2025-11-27: Added comprehensive error handling
+- 2025-11-27: Added T4TSA quality detection
 - 2025-11-27: Integrated TMDB API for movie search
-- 2025-11-27: Created t4tsa-scraper.js module
 
-## Technology Stack
-- Node.js/Express (main deployment)
-- Cheerio (HTML parsing for scraping)
-- Axios (HTTP requests)
-- TMDB API (movie metadata)
-- Telegram Bot API
-- Google Apps Script (alternative)
+## Technical Notes
+- Uses string concatenation (no template literals) for GAS compatibility
+- CacheService for 1-hour caching
+- Deduplication of webhook updates
+- Error messages sent to user on failure
+- JSDoc comments for all functions
 
 ## Troubleshooting
-1. **Search not working**: Make sure TMDB_API_KEY is set
-2. **Bot not responding**: Check BOT_TOKEN is correct
-3. **No downloads found**: Movie may not be available on T4TSA
+1. **Bot not responding to searches**: Deploy NEW version, run `clearAndSetWebhook`
+2. **TMDB not finding movies**: Check API key, try adding year
+3. **Webhook errors**: Run `getWebhookInfo` to debug
+
+## User Preferences
+- Bot runs on Google Apps Script only (not Replit)
+- Uses string concatenation instead of template literals
+- Prefers simple, clean code structure
